@@ -67,7 +67,7 @@ spec:
       containers:
         - name: postgresql
           # OpenShift-friendly PostgreSQL image (supports arbitrary UID)
-          image: quay.io/sclorg/postgresql-15-c10s:latest
+          image: registry.redhat.io/rhel9/postgresql-15:latest
           imagePullPolicy: IfNotPresent
           ports:
             - name: postgresql

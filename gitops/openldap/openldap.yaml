@@ -55,7 +55,7 @@ spec:
       terminationGracePeriodSeconds: 30
       containers:
         - name: openldap
-          image: bitnami/openldap:latest
+          image: bitnami/openldap:2.6.8-debian-12-r9
           imagePullPolicy: IfNotPresent
           ports:
             - name: ldap
