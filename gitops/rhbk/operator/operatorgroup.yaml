@@ -1,0 +1,10 @@
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: rhbk-operator
+  namespace: rhbk-gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "-21"
+spec:
+  targetNamespaces:
+    - rhbk-gitops
