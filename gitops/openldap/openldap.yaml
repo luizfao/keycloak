@@ -6,12 +6,35 @@ metadata:
     argocd.argoproj.io/sync-wave: "-2"
 type: Opaque
 stringData:
-  ldapRoot: dc=example,dc=org
-  adminUsername: admin
+  # Base config
+  ldapDomain: example.org
+  ldapOrganisation: Example Inc.
   adminPassword: change-me
-  # Bind user recommended for applications (Keycloak/RHBK)
-  bindUser: keycloak
+  # Bind user for applications (RHBK/Keycloak user federation)
+  bindUsername: keycloak
   bindPassword: change-me
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: openldap
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: openldap-anyuid
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:openshift:scc:anyuid
+subjects:
+  - kind: ServiceAccount
+    name: openldap
+    namespace: rhbk-gitops
 ---
 apiVersion: v1
 kind: Service
@@ -27,11 +50,8 @@ spec:
     app.kubernetes.io/name: openldap
   ports:
     - name: ldap
-      port: 1389
+      port: 389
       targetPort: ldap
-    - name: ldaps
-      port: 1636
-      targetPort: ldaps
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -47,52 +67,70 @@ spec:
   selector:
     matchLabels:
       app.kubernetes.io/name: openldap
+  updateStrategy:
+    type: RollingUpdate
   template:
     metadata:
       labels:
         app.kubernetes.io/name: openldap
     spec:
+      serviceAccountName: openldap
       terminationGracePeriodSeconds: 30
+      initContainers:
+        - name: init-volume
+          image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              mkdir -p /data/ldap /data/slapd.d
+          volumeMounts:
+            - name: data
+              mountPath: /data
       containers:
         - name: openldap
-          image: bitnami/openldap:2.6.8-debian-12-r9
+          image: osixia/openldap:1.5.0
           imagePullPolicy: IfNotPresent
           ports:
             - name: ldap
-              containerPort: 1389
-            - name: ldaps
-              containerPort: 1636
+              containerPort: 389
           env:
-            - name: LDAP_ROOT
+            - name: LDAP_DOMAIN
               valueFrom:
                 secretKeyRef:
                   name: openldap
-                  key: ldapRoot
-            - name: LDAP_ADMIN_USERNAME
+                  key: ldapDomain
+            - name: LDAP_ORGANISATION
               valueFrom:
                 secretKeyRef:
                   name: openldap
-                  key: adminUsername
+                  key: ldapOrganisation
             - name: LDAP_ADMIN_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: openldap
                   key: adminPassword
-            - name: LDAP_USERS
+            - name: LDAP_READONLY_USER
+              value: "true"
+            - name: LDAP_READONLY_USER_USERNAME
               valueFrom:
                 secretKeyRef:
                   name: openldap
-                  key: bindUser
-            - name: LDAP_PASSWORDS
+                  key: bindUsername
+            - name: LDAP_READONLY_USER_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: openldap
                   key: bindPassword
-            - name: LDAP_ALLOW_ANON_BINDING
-              value: "no"
+            - name: LDAP_TLS
+              value: "false"
           volumeMounts:
             - name: data
-              mountPath: /bitnami/openldap
+              mountPath: /var/lib/ldap
+              subPath: ldap
+            - name: data
+              mountPath: /etc/ldap/slapd.d
+              subPath: slapd.d
           readinessProbe:
             tcpSocket:
               port: ldap
@@ -114,13 +152,6 @@ spec:
             limits:
               cpu: "1"
               memory: 1Gi
-          securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop: ["ALL"]
-            runAsNonRoot: true
-            seccompProfile:
-              type: RuntimeDefault
   volumeClaimTemplates:
     - metadata:
         name: data
