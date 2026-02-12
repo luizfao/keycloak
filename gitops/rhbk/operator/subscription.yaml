@@ -6,8 +6,8 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "-20"
 spec:
-  channel: stable-v26.4
-  installPlanApproval: Automatic
+  channel: stable-v24.0
+  installPlanApproval: Manual
   name: rhbk-operator
   source: redhat-operators
   sourceNamespace: openshift-marketplace
