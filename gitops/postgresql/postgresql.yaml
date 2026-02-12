@@ -1,49 +1,135 @@
-apiVersion: apps/v1
-kind: StatefulSet
+apiVersion: v1
+kind: Secret
 metadata:
-  name: postgresql-db
-  labels:
-        app: postgresql-db
-spec:
-  serviceName: postgresql-db-service
-  selector:
-    matchLabels:
-      app: postgresql-db
-  replicas: 1
-  template:
-    metadata:
-      labels:
-        app: postgresql-db
-    spec:
-      containers:
-        - name: postgresql-db
-          image: postgres:15
-          volumeMounts:
-            - mountPath: /data
-              name: cache-volume
-          env:
-            - name: POSTGRES_USER
-              value: testuser
-            - name: POSTGRES_PASSWORD
-              value: testpassword
-            - name: PGDATA
-              value: /data/pgdata
-            - name: POSTGRES_DB
-              value: keycloak
-      volumes:
-        - name: cache-volume
-          emptyDir: {}
+  name: postgresql
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+type: Opaque
+stringData:
+  database: keycloak
+  username: keycloak
+  password: change-me
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: postgres-db
+  name: postgresql
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
   labels:
-        app: postgresql-db
+    app.kubernetes.io/name: postgresql
 spec:
   selector:
-    app: postgresql-db
-  type: LoadBalancer
+    app.kubernetes.io/name: postgresql
+  type: ClusterIP
   ports:
-  - port: 5432
-    targetPort: 5432
+  - name: postgresql
+    port: 5432
+    targetPort: postgresql
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgresql-headless
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+  labels:
+    app.kubernetes.io/name: postgresql
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: postgresql
+  ports:
+  - name: postgresql
+    port: 5432
+    targetPort: postgresql
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgresql
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  labels:
+    app.kubernetes.io/name: postgresql
+spec:
+  replicas: 1
+  serviceName: postgresql-headless
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgresql
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: postgresql
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: postgresql
+          # OpenShift-friendly PostgreSQL image (supports arbitrary UID)
+          image: quay.io/sclorg/postgresql-15-c10s:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: postgresql
+              containerPort: 5432
+          env:
+            - name: POSTGRESQL_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql
+                  key: database
+            - name: POSTGRESQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql
+                  key: username
+            - name: POSTGRESQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql
+                  key: password
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/pgsql/data
+          readinessProbe:
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - pg_isready -h 127.0.0.1 -p 5432
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 12
+          livenessProbe:
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - pg_isready -h 127.0.0.1 -p 5432
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 5Gi
