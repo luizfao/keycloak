@@ -26,7 +26,7 @@ spec:
             connectionUrl:
               - "ldap://openldap.rhbk-gitops.svc:389"
             usersDn:
-              - "dc=example,dc=org"
+              - "ou=Users,dc=example,dc=org"
             authType:
               - "simple"
             bindDn:

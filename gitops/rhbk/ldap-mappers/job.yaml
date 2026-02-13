@@ -1,0 +1,127 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: rhbk-ldap-mappers
+  namespace: rhbk-gitops
+  annotations:
+    # Run after realm import
+    argocd.argoproj.io/sync-wave: "20"
+spec:
+  backoffLimit: 6
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: rhbk-ldap-mappers
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: configure
+          # Use same image digest as the running Keycloak pods to avoid tag drift
+          image: registry.redhat.io/rhbk/keycloak-rhel9@sha256:d339ecf788d1681ba9945a2ea63ca675caec863ec75f497ef916103f4c898003
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: KEYCLOAK_ADMIN
+              valueFrom:
+                secretKeyRef:
+                  name: rhbk-initial-admin
+                  key: username
+            - name: KEYCLOAK_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: rhbk-initial-admin
+                  key: password
+          command: ["/bin/bash", "-ec"]
+          args:
+            - |
+              set -euo pipefail
+
+              KC_URL="http://rhbk-service.rhbk-gitops.svc:8080"
+              REALM="rhbk"
+              CFG="/tmp/kcadm.config"
+              KCADM="/opt/keycloak/bin/kcadm.sh"
+
+              echo "Logging in with kcadm..."
+              for i in $(seq 1 90); do
+                if ${KCADM} config credentials --config "${CFG}" --server "${KC_URL}" --realm master \
+                  --user "${KEYCLOAK_ADMIN}" --password "${KEYCLOAK_ADMIN_PASSWORD}" >/dev/null 2>&1; then
+                  break
+                fi
+                sleep 2
+              done
+
+              echo "Finding LDAP provider component id..."
+              LDAP_ID="$(${KCADM} get components -r "${REALM}" --config "${CFG}" \
+                --query "name=openldap" --fields id,providerId | \
+                tr -d '\r' | sed -n 's/.*\"id\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p' | head -n 1)"
+
+              if [ -z "${LDAP_ID}" ]; then
+                echo "ERROR: LDAP provider component 'openldap' not found in realm ${REALM}"
+                exit 1
+              fi
+              echo "LDAP_ID=${LDAP_ID}"
+
+              mapper_exists() {
+                local name="$1"
+                ${KCADM} get components -r "${REALM}" --config "${CFG}" \
+                  --query "parent=${LDAP_ID}" --query "name=${name}" --fields id | \
+                  tr -d '\r' | sed -n 's/.*\"id\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p' | head -n 1
+              }
+
+              ensure_mapper() {
+                local name="$1"; shift
+                local providerId="$1"; shift
+
+                local existing
+                existing="$(mapper_exists "${name}")"
+                if [ -n "${existing}" ]; then
+                  echo "Mapper '${name}' already exists (${existing})"
+                  return 0
+                fi
+
+                echo "Creating mapper '${name}'..."
+                ${KCADM} create components -r "${REALM}" --config "${CFG}" \
+                  -s name="${name}" \
+                  -s providerId="${providerId}" \
+                  -s providerType="org.keycloak.storage.ldap.mappers.LDAPStorageMapper" \
+                  -s parentId="${LDAP_ID}" \
+                  "$@"
+              }
+
+              # Attribute mappers (required for username)
+              ensure_mapper "username" "user-attribute-ldap-mapper" \
+                -s 'config.ldap.attribute=["cn"]' \
+                -s 'config.user.model.attribute=["username"]' \
+                -s 'config.is.mandatory.in.ldap=["true"]' \
+                -s 'config.read.only=["true"]' \
+                -s 'config.always.read.value.from.ldap=["true"]'
+
+              ensure_mapper "first name" "user-attribute-ldap-mapper" \
+                -s 'config.ldap.attribute=["givenName"]' \
+                -s 'config.user.model.attribute=["firstName"]' \
+                -s 'config.read.only=["true"]' \
+                -s 'config.always.read.value.from.ldap=["true"]'
+
+              ensure_mapper "last name" "user-attribute-ldap-mapper" \
+                -s 'config.ldap.attribute=["sn"]' \
+                -s 'config.user.model.attribute=["lastName"]' \
+                -s 'config.read.only=["true"]' \
+                -s 'config.always.read.value.from.ldap=["true"]'
+
+              ensure_mapper "email" "user-attribute-ldap-mapper" \
+                -s 'config.ldap.attribute=["mail"]' \
+                -s 'config.user.model.attribute=["email"]' \
+                -s 'config.read.only=["true"]' \
+                -s 'config.always.read.value.from.ldap=["true"]'
+
+              # Group mapper (groupOfNames in ou=Groups)
+              ensure_mapper "groups" "group-ldap-mapper" \
+                -s 'config.groups.dn=["ou=Groups,dc=example,dc=org"]' \
+                -s 'config.group.name.ldap.attribute=["cn"]' \
+                -s 'config.membership.ldap.attribute=["member"]' \
+                -s 'config.membership.attribute.type=["DN"]' \
+                -s 'config.user.roles.retrieve.strategy=["LOAD_GROUPS_BY_MEMBER_ATTRIBUTE"]' \
+                -s 'config.preserve.group.inheritance=["true"]' \
+                -s 'config.ignore.missing.groups=["true"]' \
+                -s 'config.drop.non.existing.groups.during.sync=["false"]'
+
+              echo "Done."
