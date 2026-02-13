@@ -23,6 +23,17 @@ spec:
   http:
     httpEnabled: true
 
+  # OpenShift Route is edge-terminated, so Keycloak must trust forwarded headers
+  # and use the correct proxy mode to build absolute URLs for the Admin UI.
+  proxy:
+    headers: xforwarded
+
+  additionalOptions:
+    # NOTE: `proxy` is deprecated in Keycloak 24 but still supported.
+    # We set it explicitly to match OpenShift edge termination.
+    - name: proxy
+      value: edge
+
   hostname:
     hostname: rhbk-rhbk-gitops.apps.cluster-zrdcz.dynamic.redhatworkshops.io
     strict: false
