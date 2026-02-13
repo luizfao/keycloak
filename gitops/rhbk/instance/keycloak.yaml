@@ -1,0 +1,32 @@
+apiVersion: k8s.keycloak.org/v2alpha1
+kind: Keycloak
+metadata:
+  name: rhbk
+  namespace: rhbk-gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  instances: 1
+
+  db:
+    vendor: postgres
+    host: postgresql
+    port: 5432
+    database: keycloak
+    usernameSecret:
+      name: postgresql
+      key: username
+    passwordSecret:
+      name: postgresql
+      key: password
+
+  http:
+    httpEnabled: true
+
+  hostname:
+    hostname: rhbk-rhbk-gitops.apps.cluster-zrdcz.dynamic.redhatworkshops.io
+    strict: false
+    strictBackchannel: false
+
+  ingress:
+    enabled: true

@@ -1,0 +1,47 @@
+apiVersion: k8s.keycloak.org/v2alpha1
+kind: KeycloakRealmImport
+metadata:
+  name: rhbk-realm
+  namespace: rhbk-gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+spec:
+  keycloakCRName: rhbk
+  realm:
+    id: rhbk
+    realm: rhbk
+    enabled: true
+
+    # LDAP user federation (OpenLDAP in rhbk-gitops namespace)
+    components:
+      org.keycloak.storage.UserStorageProvider:
+        - name: openldap
+          providerId: ldap
+          parentId: rhbk
+          config:
+            enabled:
+              - "true"
+            vendor:
+              - "other"
+            connectionUrl:
+              - "ldap://openldap.rhbk-gitops.svc:389"
+            usersDn:
+              - "dc=example,dc=org"
+            authType:
+              - "simple"
+            bindDn:
+              - "cn=keycloak,dc=example,dc=org"
+            bindCredential:
+              - "change-me"
+            editMode:
+              - "READ_ONLY"
+            importEnabled:
+              - "true"
+            usernameLDAPAttribute:
+              - "cn"
+            rdnLDAPAttribute:
+              - "cn"
+            uuidLDAPAttribute:
+              - "entryUUID"
+            userObjectClasses:
+              - "inetOrgPerson, organizationalPerson, person, top"
