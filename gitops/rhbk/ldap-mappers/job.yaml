@@ -124,6 +124,6 @@ spec:
 
               # Group mapper (groupOfNames in ou=Groups)
               ensure_mapper_json "groups" "group-ldap-mapper" \
-                "{\"name\":\"groups\",\"providerId\":\"group-ldap-mapper\",\"providerType\":\"org.keycloak.storage.ldap.mappers.LDAPStorageMapper\",\"parentId\":\"${LDAP_ID}\",\"config\":{\"groups.dn\":[\"ou=Groups,dc=example,dc=org\"],\"group.name.ldap.attribute\":[\"cn\"],\"membership.ldap.attribute\":[\"member\"],\"membership.attribute.type\":[\"DN\"],\"user.roles.retrieve.strategy\":[\"LOAD_GROUPS_BY_MEMBER_ATTRIBUTE\"],\"preserve.group.inheritance\":[\"true\"],\"ignore.missing.groups\":[\"true\"],\"drop.non.existing.groups.during.sync\":[\"false\"]}}"
+                "{\"name\":\"groups\",\"providerId\":\"group-ldap-mapper\",\"providerType\":\"org.keycloak.storage.ldap.mappers.LDAPStorageMapper\",\"parentId\":\"${LDAP_ID}\",\"config\":{\"groups.dn\":[\"ou=Groups,dc=example,dc=org\"],\"mode\":[\"READ_ONLY\"],\"group.object.classes\":[\"groupOfNames\"],\"group.name.ldap.attribute\":[\"cn\"],\"membership.ldap.attribute\":[\"member\"],\"membership.attribute.type\":[\"DN\"],\"user.roles.retrieve.strategy\":[\"LOAD_GROUPS_BY_MEMBER_ATTRIBUTE\"],\"preserve.group.inheritance\":[\"true\"],\"ignore.missing.groups\":[\"true\"],\"drop.non.existing.groups.during.sync\":[\"false\"]}}"
 
               echo "Done."
