@@ -11,7 +11,7 @@ metadata:
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
 spec:
   backoffLimit: 6
-  ttlSecondsAfterFinished: 600
+  # Keep failed pods for debugging; clean up manually after success.
   template:
     metadata:
       labels:
@@ -45,22 +45,39 @@ spec:
               KCADM="/opt/keycloak/bin/kcadm.sh"
 
               echo "Logging in with kcadm and waiting for LDAP provider to exist..."
+              LOGGED_IN="false"
+              LAST_ERR=""
               LDAP_ID=""
-              for i in $(seq 1 120); do
+              # 600*2s = 20 minutes
+              for i in $(seq 1 600); do
                 if ${KCADM} config credentials --config "${CFG}" --server "${KC_URL}" --realm master \
-                  --user "${KEYCLOAK_ADMIN}" --password "${KEYCLOAK_ADMIN_PASSWORD}" >/dev/null 2>&1; then
-                  LDAP_ID="$(${KCADM} get components -r "${REALM}" --config "${CFG}" \
-                    --query "name=openldap" --fields id,providerId 2>/dev/null | \
-                    tr -d '\r' | sed -n 's/.*\"id\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p' | head -n 1 || true)"
-                  if [ -n "${LDAP_ID}" ]; then
-                    break
+                  --user "${KEYCLOAK_ADMIN}" --password "${KEYCLOAK_ADMIN_PASSWORD}" >/dev/null 2>/tmp/kcadm.err; then
+                  LOGGED_IN="true"
+
+                  # Ensure realm exists before looking for components
+                  if ${KCADM} get "realms/${REALM}" --config "${CFG}" --fields realm >/dev/null 2>/tmp/kcadm.err; then
+                    LDAP_ID="$(${KCADM} get components -r "${REALM}" --config "${CFG}" \
+                      --query "name=openldap" --fields id,providerId 2>/tmp/kcadm.err | \
+                      tr -d '\r' | sed -n 's/.*\"id\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p' | head -n 1 || true)"
+                    if [ -n "${LDAP_ID}" ]; then
+                      break
+                    fi
                   fi
+                fi
+
+                if [ -s /tmp/kcadm.err ]; then
+                  LAST_ERR="$(tail -n 1 /tmp/kcadm.err || true)"
                 fi
                 sleep 2
               done
 
               if [ -z "${LDAP_ID}" ]; then
-                echo "ERROR: LDAP provider component 'openldap' not found in realm ${REALM} after waiting"
+                if [ "${LOGGED_IN}" != "true" ]; then
+                  echo "ERROR: failed to login with kcadm to ${KC_URL} (last error: ${LAST_ERR})"
+                else
+                  echo "ERROR: LDAP provider component 'openldap' not found in realm ${REALM} after waiting (last error: ${LAST_ERR})"
+                  echo "Hint: check KeycloakRealmImport status and that component name is 'openldap'."
+                fi
                 exit 1
               fi
 
