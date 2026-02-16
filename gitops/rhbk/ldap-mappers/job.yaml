@@ -56,9 +56,9 @@ spec:
 
                   # Ensure realm exists before looking for components
                   if ${KCADM} get "realms/${REALM}" --config "${CFG}" --fields realm >/dev/null 2>/tmp/kcadm.err; then
-                    LDAP_ID="$(${KCADM} get components -r "${REALM}" --config "${CFG}" \
-                      --query "name=openldap" --fields id,providerId 2>/tmp/kcadm.err | \
-                      tr -d '\r' | sed -n 's/.*\"id\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p' | head -n 1 || true)"
+                    COMP_JSON="$(${KCADM} get components -r "${REALM}" --config "${CFG}" \
+                      --query "name=openldap" --fields id,providerId 2>/tmp/kcadm.err | tr -d '\r' || true)"
+                    LDAP_ID="$(printf '%s' "${COMP_JSON}" | sed -n 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1 || true)"
                     if [ -n "${LDAP_ID}" ]; then
                       break
                     fi
@@ -77,6 +77,8 @@ spec:
                 else
                   echo "ERROR: LDAP provider component 'openldap' not found in realm ${REALM} after waiting (last error: ${LAST_ERR})"
                   echo "Hint: check KeycloakRealmImport status and that component name is 'openldap'."
+                  echo "Last provider query output was:"
+                  echo "${COMP_JSON:-<empty>}"
                 fi
                 exit 1
               fi
@@ -85,9 +87,10 @@ spec:
 
               mapper_exists() {
                 local name="$1"
-                ${KCADM} get components -r "${REALM}" --config "${CFG}" \
-                  --query "parent=${LDAP_ID}" --query "name=${name}" --fields id | \
-                  tr -d '\r' | sed -n 's/.*\"id\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p' | head -n 1 || true
+                local json
+                json="$(${KCADM} get components -r "${REALM}" --config "${CFG}" \
+                  --query "parent=${LDAP_ID}" --query "name=${name}" --fields id 2>/dev/null | tr -d '\r' || true)"
+                printf '%s' "${json}" | sed -n 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1 || true
               }
 
               ensure_mapper() {
