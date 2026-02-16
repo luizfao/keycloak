@@ -6,8 +6,12 @@ metadata:
   annotations:
     # Run after realm import
     argocd.argoproj.io/sync-wave: "20"
+    # Recreate/re-run on each sync until it succeeds, then remove the Job pod.
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
 spec:
   backoffLimit: 6
+  ttlSecondsAfterFinished: 600
   template:
     metadata:
       labels:
@@ -40,31 +44,33 @@ spec:
               CFG="/tmp/kcadm.config"
               KCADM="/opt/keycloak/bin/kcadm.sh"
 
-              echo "Logging in with kcadm..."
-              for i in $(seq 1 90); do
+              echo "Logging in with kcadm and waiting for LDAP provider to exist..."
+              LDAP_ID=""
+              for i in $(seq 1 120); do
                 if ${KCADM} config credentials --config "${CFG}" --server "${KC_URL}" --realm master \
                   --user "${KEYCLOAK_ADMIN}" --password "${KEYCLOAK_ADMIN_PASSWORD}" >/dev/null 2>&1; then
-                  break
+                  LDAP_ID="$(${KCADM} get components -r "${REALM}" --config "${CFG}" \
+                    --query "name=openldap" --fields id,providerId 2>/dev/null | \
+                    tr -d '\r' | sed -n 's/.*\"id\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p' | head -n 1 || true)"
+                  if [ -n "${LDAP_ID}" ]; then
+                    break
+                  fi
                 fi
                 sleep 2
               done
 
-              echo "Finding LDAP provider component id..."
-              LDAP_ID="$(${KCADM} get components -r "${REALM}" --config "${CFG}" \
-                --query "name=openldap" --fields id,providerId | \
-                tr -d '\r' | sed -n 's/.*\"id\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p' | head -n 1)"
-
               if [ -z "${LDAP_ID}" ]; then
-                echo "ERROR: LDAP provider component 'openldap' not found in realm ${REALM}"
+                echo "ERROR: LDAP provider component 'openldap' not found in realm ${REALM} after waiting"
                 exit 1
               fi
+
               echo "LDAP_ID=${LDAP_ID}"
 
               mapper_exists() {
                 local name="$1"
                 ${KCADM} get components -r "${REALM}" --config "${CFG}" \
                   --query "parent=${LDAP_ID}" --query "name=${name}" --fields id | \
-                  tr -d '\r' | sed -n 's/.*\"id\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p' | head -n 1
+                  tr -d '\r' | sed -n 's/.*\"id\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p' | head -n 1 || true
               }
 
               ensure_mapper() {
