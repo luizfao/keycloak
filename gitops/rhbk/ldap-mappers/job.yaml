@@ -93,9 +93,10 @@ spec:
                 printf '%s' "${json}" | sed -n 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1 || true
               }
 
-              ensure_mapper() {
+              ensure_mapper_json() {
                 local name="$1"; shift
                 local providerId="$1"; shift
+                local json="$1"; shift
 
                 local existing
                 existing="$(mapper_exists "${name}")"
@@ -105,49 +106,24 @@ spec:
                 fi
 
                 echo "Creating mapper '${name}'..."
-                ${KCADM} create components -r "${REALM}" --config "${CFG}" \
-                  -s name="${name}" \
-                  -s providerId="${providerId}" \
-                  -s providerType="org.keycloak.storage.ldap.mappers.LDAPStorageMapper" \
-                  -s parentId="${LDAP_ID}" \
-                  "$@"
+                echo "${json}" | ${KCADM} create components -r "${REALM}" --config "${CFG}" -f -
               }
 
               # Attribute mappers (required for username)
-              ensure_mapper "username" "user-attribute-ldap-mapper" \
-                -s 'config.ldap.attribute=["cn"]' \
-                -s 'config.user.model.attribute=["username"]' \
-                -s 'config.is.mandatory.in.ldap=["true"]' \
-                -s 'config.read.only=["true"]' \
-                -s 'config.always.read.value.from.ldap=["true"]'
+              ensure_mapper_json "username" "user-attribute-ldap-mapper" \
+                "{\"name\":\"username\",\"providerId\":\"user-attribute-ldap-mapper\",\"providerType\":\"org.keycloak.storage.ldap.mappers.LDAPStorageMapper\",\"parentId\":\"${LDAP_ID}\",\"config\":{\"user.model.attribute\":[\"username\"],\"ldap.attribute\":[\"cn\"],\"is.mandatory.in.ldap\":[\"true\"],\"read.only\":[\"true\"],\"always.read.value.from.ldap\":[\"true\"]}}"
 
-              ensure_mapper "first name" "user-attribute-ldap-mapper" \
-                -s 'config.ldap.attribute=["givenName"]' \
-                -s 'config.user.model.attribute=["firstName"]' \
-                -s 'config.read.only=["true"]' \
-                -s 'config.always.read.value.from.ldap=["true"]'
+              ensure_mapper_json "first name" "user-attribute-ldap-mapper" \
+                "{\"name\":\"first name\",\"providerId\":\"user-attribute-ldap-mapper\",\"providerType\":\"org.keycloak.storage.ldap.mappers.LDAPStorageMapper\",\"parentId\":\"${LDAP_ID}\",\"config\":{\"user.model.attribute\":[\"firstName\"],\"ldap.attribute\":[\"givenName\"],\"read.only\":[\"true\"],\"always.read.value.from.ldap\":[\"true\"]}}"
 
-              ensure_mapper "last name" "user-attribute-ldap-mapper" \
-                -s 'config.ldap.attribute=["sn"]' \
-                -s 'config.user.model.attribute=["lastName"]' \
-                -s 'config.read.only=["true"]' \
-                -s 'config.always.read.value.from.ldap=["true"]'
+              ensure_mapper_json "last name" "user-attribute-ldap-mapper" \
+                "{\"name\":\"last name\",\"providerId\":\"user-attribute-ldap-mapper\",\"providerType\":\"org.keycloak.storage.ldap.mappers.LDAPStorageMapper\",\"parentId\":\"${LDAP_ID}\",\"config\":{\"user.model.attribute\":[\"lastName\"],\"ldap.attribute\":[\"sn\"],\"read.only\":[\"true\"],\"always.read.value.from.ldap\":[\"true\"]}}"
 
-              ensure_mapper "email" "user-attribute-ldap-mapper" \
-                -s 'config.ldap.attribute=["mail"]' \
-                -s 'config.user.model.attribute=["email"]' \
-                -s 'config.read.only=["true"]' \
-                -s 'config.always.read.value.from.ldap=["true"]'
+              ensure_mapper_json "email" "user-attribute-ldap-mapper" \
+                "{\"name\":\"email\",\"providerId\":\"user-attribute-ldap-mapper\",\"providerType\":\"org.keycloak.storage.ldap.mappers.LDAPStorageMapper\",\"parentId\":\"${LDAP_ID}\",\"config\":{\"user.model.attribute\":[\"email\"],\"ldap.attribute\":[\"mail\"],\"read.only\":[\"true\"],\"always.read.value.from.ldap\":[\"true\"]}}"
 
               # Group mapper (groupOfNames in ou=Groups)
-              ensure_mapper "groups" "group-ldap-mapper" \
-                -s 'config.groups.dn=["ou=Groups,dc=example,dc=org"]' \
-                -s 'config.group.name.ldap.attribute=["cn"]' \
-                -s 'config.membership.ldap.attribute=["member"]' \
-                -s 'config.membership.attribute.type=["DN"]' \
-                -s 'config.user.roles.retrieve.strategy=["LOAD_GROUPS_BY_MEMBER_ATTRIBUTE"]' \
-                -s 'config.preserve.group.inheritance=["true"]' \
-                -s 'config.ignore.missing.groups=["true"]' \
-                -s 'config.drop.non.existing.groups.during.sync=["false"]'
+              ensure_mapper_json "groups" "group-ldap-mapper" \
+                "{\"name\":\"groups\",\"providerId\":\"group-ldap-mapper\",\"providerType\":\"org.keycloak.storage.ldap.mappers.LDAPStorageMapper\",\"parentId\":\"${LDAP_ID}\",\"config\":{\"groups.dn\":[\"ou=Groups,dc=example,dc=org\"],\"group.name.ldap.attribute\":[\"cn\"],\"membership.ldap.attribute\":[\"member\"],\"membership.attribute.type\":[\"DN\"],\"user.roles.retrieve.strategy\":[\"LOAD_GROUPS_BY_MEMBER_ATTRIBUTE\"],\"preserve.group.inheritance\":[\"true\"],\"ignore.missing.groups\":[\"true\"],\"drop.non.existing.groups.during.sync\":[\"false\"]}}"
 
               echo "Done."
