@@ -17,7 +17,6 @@ spec:
       org.keycloak.storage.UserStorageProvider:
         - name: openldap
           providerId: ldap
-          parentId: rhbk
           config:
             enabled:
               - "true"
