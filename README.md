@@ -15,9 +15,43 @@ Documentação do produto (v24): `https://docs.redhat.com/en/documentation/red_h
 
 - Você estar logado no cluster (`oc whoami`)
 - OpenShift GitOps (Argo CD) instalado (namespace `openshift-gitops`)
-- Este repositório acessível pelo cluster (GitHub público ou credenciais configuradas no ArgoCD)
+- Este repositório precisa ser acessível pelo cluster. Se ele estiver **privado**, configure credenciais no ArgoCD (abaixo).
 
-### 1) Bootstrap do ArgoCD (uma vez)
+### 1) (Se o repo for privado) criar um token de leitura e configurar credenciais no ArgoCD
+
+Crie um **token de leitura** no GitHub (Fine-grained PAT recomendado):
+
+- **Repository access**: selecione este repositório (`luizfao/keycloak`)
+- **Permissions**:
+  - **Contents**: Read
+  - **Metadata**: Read
+
+Depois, no terminal, exporte o token e aplique o Secret no cluster (no namespace `openshift-gitops`):
+
+```bash
+export GITHUB_TOKEN='<COLE_SEU_TOKEN_AQUI>'
+
+oc -n openshift-gitops apply -f - <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: repo-keycloak
+  namespace: openshift-gitops
+  labels:
+    argocd.argoproj.io/secret-type: repository
+type: Opaque
+stringData:
+  type: git
+  url: https://github.com/luizfao/keycloak.git
+  username: x-access-token
+  password: ${GITHUB_TOKEN}
+EOF
+```
+
+Alternativa: copie `keycloak/bootstrap/repo-credentials-secret.example.yaml` para
+`keycloak/bootstrap/repo-credentials-secret.yaml`, preencha o token e aplique — esse arquivo é ignorado pelo Git via `.gitignore`.
+
+### 2) Bootstrap do ArgoCD (uma vez)
 
 Aplicar o `Application` que aponta para `gitops/`:
 
@@ -89,7 +123,7 @@ oc -n rhbk-gitops get secret postgresql -o jsonpath='{.data.password}' | base64 
 
 - `keycloak/bootstrap/application.yaml`
   - Cria o `Application` do ArgoCD que sincroniza este repo (caminho `gitops/`).
-- `keycloak/gitops/application.yaml`
+- `keycloak/gitops/namespace.yaml`
   - Cria o namespace `rhbk-gitops`.
 
 ### Dependências
