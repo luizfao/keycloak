@@ -41,8 +41,6 @@ Substitua o domínio se necessário (este lab usou `apps.cluster-zrdcz.dynamic.r
 - **Account Console (login como usuário do realm `rhbk`, ex.: LDAP)**:
   - `https://rhbk-rhbk-gitops.apps.cluster-zrdcz.dynamic.redhatworkshops.io/realms/rhbk/account/`
 
-Importante: `/admin/rhbk/console/` não é a URL certa para autenticar como admin; isso gerava loop/403.
-
 ### 4) Usuários e senhas (lab)
 
 #### RHBK admin (gerado pelo operator)
