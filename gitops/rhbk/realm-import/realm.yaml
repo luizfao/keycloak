@@ -36,6 +36,8 @@ spec:
               - "READ_ONLY"
             importEnabled:
               - "true"
+            trustEmail:
+              - "true"
             usernameLDAPAttribute:
               - "cn"
             rdnLDAPAttribute:
