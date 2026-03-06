@@ -12,6 +12,24 @@ spec:
     realm: rhbk
     enabled: true
 
+    # OAuth 2.0 client used by 3scale Zync to register OIDC applications in Keycloak
+    # and by APIcast for token introspection.
+    # After applying, manually assign manage-clients + view-clients roles from
+    # realm-management to this client's service account (see ECHOAPI_OIDC_MANUAL_STEPS.md).
+    clients:
+      - clientId: 3scale-zync
+        name: 3scale Zync OIDC Integration
+        description: Used by 3scale Zync to register OIDC clients and by APIcast for token introspection
+        enabled: true
+        clientAuthenticatorType: client-secret
+        secret: change-me-zync-secret
+        standardFlowEnabled: false
+        implicitFlowEnabled: false
+        directAccessGrantsEnabled: false
+        serviceAccountsEnabled: true
+        publicClient: false
+        protocol: openid-connect
+
     # LDAP user federation (OpenLDAP in rhbk-gitops namespace)
     components:
       org.keycloak.storage.UserStorageProvider:
