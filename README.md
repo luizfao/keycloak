@@ -1,4 +1,5 @@
 # RHBK (Red Hat Build of Keycloak) via OpenShift GitOps (Argo CD)
+NOTA: Este repositório foi criado com ajuda de IA.
 
 Este repositório contém manifests **GitOps** para instalar e configurar, em um cluster OpenShift, um ambiente de laboratório com:
 
