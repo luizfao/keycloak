@@ -69,12 +69,12 @@ Isso cria o `Application` `rhbk` no ArgoCD e ele passa a sincronizar `keycloak/g
 
 ### 3) URLs
 
-Substitua o domínio se necessário (este lab usou `apps.cluster-zrdcz.dynamic.redhatworkshops.io`).
+Substitua o domínio se necessário (este lab usou `apps.cluster-bcb52.dynamic.redhatworkshops.io`).
 
 - **Admin Console (login como admin do master)**:
-  - `https://rhbk-rhbk-gitops.apps.cluster-zrdcz.dynamic.redhatworkshops.io/admin/master/console/`
+  - `https://rhbk-rhbk-gitops.apps.cluster-bcb52.dynamic.redhatworkshops.io/admin/master/console/`
 - **Account Console (login como usuário do realm `rhbk`, ex.: LDAP)**:
-  - `https://rhbk-rhbk-gitops.apps.cluster-zrdcz.dynamic.redhatworkshops.io/realms/rhbk/account/`
+  - `https://rhbk-rhbk-gitops.apps.cluster-bcb52.dynamic.redhatworkshops.io/realms/rhbk/account/`
 
 ### 4) Usuários e senhas (lab)
 

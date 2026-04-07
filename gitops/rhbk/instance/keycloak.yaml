@@ -29,7 +29,7 @@ spec:
     headers: xforwarded
 
   hostname:
-    hostname: rhbk-rhbk-gitops.apps.cluster-zrdcz.dynamic.redhatworkshops.io
+    hostname: rhbk-rhbk-gitops.apps.cluster-bcb52.dynamic.redhatworkshops.io
     strict: false
     strictBackchannel: false
 
