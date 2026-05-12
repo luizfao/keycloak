@@ -5,6 +5,8 @@ metadata:
   namespace: rhbk-gitops
   annotations:
     argocd.argoproj.io/sync-wave: "0"
+    # The operator is installed in this ArgoCD Application, so skip validation
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 spec:
   instances: 1
 
