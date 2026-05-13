@@ -31,7 +31,7 @@ spec:
     headers: xforwarded
 
   hostname:
-    hostname: rhbk-rhbk-gitops.apps.cluster-zrdcz.dynamic.redhatworkshops.io
+    hostname: rhbk-rhbk-gitops.apps.ocp.luiz.lf
     strict: false
     strictBackchannel: false
 

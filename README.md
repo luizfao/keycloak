@@ -52,7 +52,11 @@ EOF
 Alternativa: copie `keycloak/bootstrap/repo-credentials-secret.example.yaml` para
 `keycloak/bootstrap/repo-credentials-secret.yaml`, preencha o token e aplique — esse arquivo é ignorado pelo Git via `.gitignore`.
 
-### 2) Bootstrap do ArgoCD (uma vez)
+### 2) Atualize a URL do cluster
+
+Atualize o `hostname` do RHBK com o domínio do seu cluster na definição do [keycloak](gitops/rhbk/instance/keycloak.yaml), ou faça um "*find/replace*" de "`apps.ocp.luiz.lf`" pelo domínio do seu cluster no repositório todo.
+
+### 3) Bootstrap do ArgoCD (uma vez)
 
 Aplicar o `Application` que aponta para `gitops/`:
 
@@ -62,19 +66,19 @@ oc apply -f keycloak/bootstrap/application.yaml
 
 Isso cria o `Application` `rhbk` no ArgoCD e ele passa a sincronizar `keycloak/gitops/`.
 
-### 2) Onde tudo é instalado
+#### 3.1) Onde tudo é instalado
 
 - **Namespace GitOps/lab**: `rhbk-gitops`
 - O Operator do RHBK é instalado **no próprio `rhbk-gitops`** (namespaced) via `OperatorGroup`.
 
-### 3) URLs
+#### 3.2) URLs
 
-Substitua o domínio se necessário (este lab usou `apps.cluster-zrdcz.dynamic.redhatworkshops.io`).
+Substitua o domínio se necessário (este lab usou `apps.ocp.luiz.lf`).
 
 - **Admin Console (login como admin do master)**:
-  - `https://rhbk-rhbk-gitops.apps.cluster-zrdcz.dynamic.redhatworkshops.io/admin/master/console/`
+  - `https://rhbk-rhbk-gitops.apps.ocp.luiz.lf/admin/master/console/`
 - **Account Console (login como usuário do realm `rhbk`, ex.: LDAP)**:
-  - `https://rhbk-rhbk-gitops.apps.cluster-zrdcz.dynamic.redhatworkshops.io/realms/rhbk/account/`
+  - `https://rhbk-rhbk-gitops.apps.ocp.luiz.lf/realms/rhbk/account/`
 
 ### 4) Usuários e senhas (lab)
 
